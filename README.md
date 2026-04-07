@@ -3,8 +3,9 @@
 Demo app: [mtproto_proxy](https://github.com/seriyps/mtproto_proxy) + Cowboy + personal domain registration UI.
 
 Users visit a web page, optionally enter their email, and receive a personal
-MTProto proxy link on a unique subdomain (e.g. `aqfmc.demo.personal-mtp.online`).
-Subdomains are persisted in DETS and restored into the policy table on restart.
+MTProto proxy link tied to a unique subdomain. Subdomains are persisted in DETS
+and restored into the policy table on restart. See [DNS setup](#dns-setup-production)
+for the required wildcard DNS records that enable per-user server routing.
 
 [Article](priv/ARTICLE.md)
 
@@ -26,6 +27,22 @@ Then open https://demo.personal-mtp.test:2443/ in your browser
 (accept the self-signed cert warning).
 
 The MTP proxy itself listens on port 2443 in local mode (no root required).
+
+## DNS setup (production)
+
+Two records are required (replace `proxy.example.com` with your domain and `1.2.3.4` with your server's IP):
+
+| Name | Type | Value |
+|------|------|-------|
+| `proxy.example.com` | A | `1.2.3.4` |
+| `*.proxy.example.com` | A | `1.2.3.4` |
+
+The wildcard record covers all personal subdomains (`alice42.proxy.example.com`, etc.).
+Each generated proxy link uses the full subdomain as the server hostname — the fake-TLS
+SNI encodes the subdomain too, so the TCP hostname and the SNI always match.
+In a multi-server setup you can later point individual subdomains to different servers
+via more specific A records, enabling per-user geographic routing without changing the
+proxy software.
 
 ## Production build & install
 
