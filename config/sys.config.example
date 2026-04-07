@@ -42,7 +42,8 @@
        [{progress, {fun logger_filters:progress/2, stop}}]},
       {handler, default, logger_std_h,
        #{level => info,
-         formatter => {logger_formatter, #{single_line => true}},
+         formatter => {logger_formatter, #{single_line => true,
+                         template => [time, " ", level, " ", pid, " ", mfa, ":", line, " ", msg, "\n"]}},
          config => #{type => file,
                      file => "/var/log/personal_mtproxy/application.log",
                      max_no_bytes => 104857600,  % 100MB
