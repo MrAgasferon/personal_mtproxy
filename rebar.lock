@@ -8,7 +8,7 @@
  {<<"jsx">>,{pkg,<<"jsx">>,<<"3.1.0">>},0},
  {<<"mtproto_proxy">>,
   {git,"git@github.com:seriyps/mtproto_proxy.git",
-       {ref,"d0a81b04a5b1c37dc42b5eee41fa4cb6b0943269"}},
+       {ref,"492956a5980fdd22fe8781bf79934a250bce68ad"}},
   0},
  {<<"ranch">>,{pkg,<<"ranch">>,<<"2.2.0">>},0},
  {<<"redbug">>,{pkg,<<"redbug">>,<<"2.1.0">>},0}]}.
