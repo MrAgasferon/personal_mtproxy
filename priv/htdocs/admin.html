@@ -151,7 +151,17 @@
       border-radius: 4px; 
       font-size: 13px; 
     }
-    .error-box {
+    .dev-warning {
+      background: #fef9e7;
+      border: 1px solid #f9ca24;
+      color: #7d6608;
+      padding: 14px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .dev-warning strong { display: block; margin-bottom: 4px; }
       background: #fadbd8;
       border: 1px solid #f5b7b1;
       color: #c0392b;
@@ -214,7 +224,20 @@
           <strong>⚠️ Important:</strong> Share this link only with people you trust. The proxy uses a personal domain which limits the number of concurrent connections to prevent unauthorized sharing.
         </div>
         
-        <div style="display: flex; gap: 10px; margin-top: 20px;">
+    <div id="dev-warning" class="dev-warning hidden">
+      <strong>🛠 Local development domain detected</strong>
+      The generated proxy link contains a personal subdomain (e.g.
+      <code id="dev-subdomain-example">xxxxx.demo.personal-mtp.test</code>)
+      as the server hostname. <code>/etc/hosts</code> does not support
+      wildcards, so this subdomain will not resolve locally.<br><br>
+      To test the proxy, either:<br>
+      &nbsp;• Add the exact subdomain to <code>/etc/hosts</code>:
+        <code>127.0.0.1 &lt;subdomain&gt;</code><br>
+      &nbsp;• Or manually replace the <code>server=</code> value in the link
+        with the base domain (<code id="dev-base-domain"></code>).
+    </div>
+
+    <div style="display: flex; gap: 10px; margin-top: 20px;">
           <button onclick="resetForm()" style="flex: 1;">Get Another Proxy</button>
           <button onclick="revokeProxy()" id="revoke-btn" style="flex: 1; background: #e74c3c;">Revoke This Proxy</button>
         </div>
@@ -267,6 +290,18 @@
       document.getElementById('link-value').textContent = data.link;
       document.getElementById('tg-link').href = data.tg_link;
       document.getElementById('revoke-btn').dataset.subdomain = data.subdomain;
+
+      // Show a warning when running against a .test domain — /etc/hosts has no wildcard support.
+      const host = window.location.hostname;
+      const isDevDomain = host.endsWith('.test') || host === 'localhost';
+      const warningEl = document.getElementById('dev-warning');
+      if (isDevDomain) {
+        document.getElementById('dev-subdomain-example').textContent = data.subdomain;
+        document.getElementById('dev-base-domain').textContent = host;
+        warningEl.classList.remove('hidden');
+      } else {
+        warningEl.classList.add('hidden');
+      }
     }
 
     function showError(message) {
