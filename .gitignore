@@ -16,3 +16,4 @@ config/prod-vm.args
 priv/certs/
 *.DS_Store
 *.dets
+/.agent-shell/

@@ -9,10 +9,10 @@ USER:=personal_mtproxy
 CERTBOT_HOOK_DIR  := $(DESTDIR)/etc/letsencrypt/renewal-hooks/deploy
 CERTBOT_HOOK_DEST := $(CERTBOT_HOOK_DIR)/personal_mtproxy.sh
 CERTBOT_HOOK_SRC  := config/certbot-deploy.sh
-CERTBOT_LINEAGE_LINK := $(DATADIR)/cert-lineage
 
-# Read base_domain from config/sys.config at parse time (empty if file absent).
-DOMAIN := $(shell awk -F'"' '/base_domain/{print $$2; exit}' config/sys.config 2>/dev/null)
+# Read all vhost domains from config/sys.config.
+# Matches lines like:  domain   => "some.domain.tld",
+DOMAINS := $(shell awk -F'"' '/domain[[:space:]]*=>/{print $$2}' config/sys.config 2>/dev/null)
 
 DEV_CERT_DIR := priv/certs
 DEV_CERT     := $(DEV_CERT_DIR)/cert.pem
@@ -75,23 +75,57 @@ install: user $(LOGDIR) $(DATADIR)
 	chmod 777 $(prefix)/personal_mtproxy/log/
 	install -D config/personal-mtproxy.service $(SERVICE)
 	systemctl daemon-reload
-	# --- Certbot deploy hook ---
-	@test -n "$(DOMAIN)" || \
-	  (echo "ERROR: base_domain not found in config/sys.config" >&2; exit 1)
-	ln -sfn /etc/letsencrypt/live/$(DOMAIN) $(CERTBOT_LINEAGE_LINK)
+	# --- Per-vhost cert directories and certbot deploy hook ---
+	@test -n "$(DOMAINS)" || \
+	  (echo "ERROR: no vhost domains found in config/sys.config" >&2; exit 1)
 	install -D -m 755 $(CERTBOT_HOOK_SRC) $(CERTBOT_HOOK_DEST)
-	@if [ -r /etc/letsencrypt/live/$(DOMAIN)/privkey.pem ]; then \
-	  echo "Certificate found — running deploy hook to copy certs to $(DATADIR)/..."; \
-	  RENEWED_LINEAGE=/etc/letsencrypt/live/$(DOMAIN) bash $(CERTBOT_HOOK_DEST); \
-	else \
-	  echo ""; \
-	  echo "WARNING: No certificate found at /etc/letsencrypt/live/$(DOMAIN)/"; \
-	  echo "  Generate one first (see README for instructions), then start the service."; \
-	  echo "  The deploy hook will copy certs automatically on every future renewal."; \
-	  echo ""; \
-	fi
+	@for domain in $(DOMAINS); do \
+	  domaindir="$(DATADIR)/$$domain"; \
+	  mkdir -p "$$domaindir"; \
+	  chown $(USER) "$$domaindir"; \
+	  ln -sfn /etc/letsencrypt/live/$$domain "$$domaindir/cert-lineage"; \
+	  echo "Configured vhost: $$domain -> $$domaindir/"; \
+	  if [ -r /etc/letsencrypt/live/$$domain/privkey.pem ]; then \
+	    echo "  Certificate found — running deploy hook to copy certs..."; \
+	    RENEWED_LINEAGE=/etc/letsencrypt/live/$$domain bash $(CERTBOT_HOOK_DEST); \
+	  else \
+	    echo ""; \
+	    echo "  WARNING: No certificate found at /etc/letsencrypt/live/$$domain/"; \
+	    echo "    Generate one first (see README), then start the service."; \
+	    echo ""; \
+	  fi \
+	done
 
-.PHONY: update-sysconfig
+.PHONY: migrate-vhosts-certs
+migrate-vhosts-certs:
+	@old_link="$(DATADIR)/cert-lineage"; \
+	if [ ! -L "$$old_link" ]; then \
+	  echo "Nothing to migrate: $$old_link not found (already migrated or never installed)."; \
+	  exit 0; \
+	fi; \
+	lineage=$$(readlink "$$old_link"); \
+	domain=$$(basename "$$lineage"); \
+	domaindir="$(DATADIR)/$$domain"; \
+	echo "Migrating cert layout for domain: $$domain"; \
+	mkdir -p "$$domaindir"; \
+	chown $(USER) "$$domaindir"; \
+	for f in fullchain.pem privkey.pem; do \
+	  if [ -f "$(DATADIR)/$$f" ]; then \
+	    mv "$(DATADIR)/$$f" "$$domaindir/$$f"; \
+	    echo "  Moved $(DATADIR)/$$f -> $$domaindir/$$f"; \
+	  else \
+	    echo "  WARNING: $(DATADIR)/$$f not found, skipping."; \
+	  fi; \
+	done; \
+	ln -sfn "$$lineage" "$$domaindir/cert-lineage"; \
+	echo "  Created $$domaindir/cert-lineage -> $$lineage"; \
+	rm "$$old_link"; \
+	echo "  Removed old $$old_link"; \
+	echo "Migration complete. Update sys.config to use new paths:"; \
+	echo "  ssl_cert => $$domaindir/fullchain.pem"; \
+	echo "  ssl_key  => $$domaindir/privkey.pem"
+
+
 update-sysconfig: config/sys.config $(prefix)/personal_mtproxy
 	REL_VSN=$$(cat $(prefix)/personal_mtproxy/releases/start_erl.data | cut -d " " -f 2) && \
 		install -m 644 config/sys.config "$(prefix)/personal_mtproxy/releases/$${REL_VSN}/sys.config"
@@ -100,5 +134,4 @@ uninstall:
 	rm $(SERVICE)
 	rm -r $(prefix)/personal_mtproxy
 	rm -f $(CERTBOT_HOOK_DEST)
-	rm -f $(CERTBOT_LINEAGE_LINK)
 	systemctl daemon-reload

@@ -7,7 +7,7 @@
 
 -behaviour(gen_server).
 
--export([start_link/0, register/1, revoke/1, list/0]).
+-export([start_link/0, register/2, revoke/1, list/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -include_lib("kernel/include/logger.hrl").
@@ -21,8 +21,9 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-register(Email) ->
-    gen_server:call(?SERVER, {register, Email}).
+%% Register a new personal subdomain under BaseDomain.
+register(Email, BaseDomain) ->
+    gen_server:call(?SERVER, {register, Email, BaseDomain}).
 
 revoke(Subdomain) ->
     gen_server:call(?SERVER, {revoke, Subdomain}).
@@ -33,10 +34,8 @@ list() ->
 init([]) ->
     {ok, DetsFile} = application:get_env(?APP, dets_file),
 
-    % Open or create DETS
     {ok, DetsRef} = dets:open_file(?DETS_TABLE, [{file, DetsFile}, {keypos, 1}]),
 
-    % Replay all stored subdomains into policy table
     ok = dets:foldl(
       fun({Subdomain, _Email, _Timestamp}, ok) ->
               mtp_policy_table:add(personal_domains, tls_domain, Subdomain)
@@ -45,16 +44,13 @@ init([]) ->
 
     {ok, #state{dets_ref = DetsRef}}.
 
-handle_call({register, Email}, _From, State = #state{dets_ref = DetsRef}) ->
-    % Generate 5-char random hex slug with collision retry (max 5 attempts)
-    case generate_slug(DetsRef, 5) of
+handle_call({register, Email, BaseDomain}, _From, State = #state{dets_ref = DetsRef}) ->
+    case generate_slug(DetsRef, BaseDomain, 5) of
         {error, Reason} ->
             {reply, {error, Reason}, State};
         Subdomain ->
             {ok, [#{port := Port, secret := BaseSecret} | _]} = application:get_env(mtproto_proxy, ports),
-            % Store in DETS
             ok = dets:insert(DetsRef, {Subdomain, Email, erlang:system_time(second)}),
-            % Add to live policy table
             ok = mtp_policy_table:add(personal_domains, tls_domain, Subdomain),
             {reply, {ok, Subdomain, Port, BaseSecret}, State}
     end;
@@ -88,20 +84,17 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% Private helpers
 
-generate_slug(DetsRef, Retries) ->
+generate_slug(DetsRef, BaseDomain, Retries) ->
     case Retries of
         0 ->
             {error, max_retries};
         _ ->
             Slug = [($a + rand:uniform(26) - 1) || _ <- lists:seq(1, 5)],
-            {ok, BaseDomain} = application:get_env(?APP, base_domain),
             Subdomain = list_to_binary(Slug ++ "." ++ BaseDomain),
-
             case dets:lookup(DetsRef, Subdomain) of
                 [] ->
                     Subdomain;
                 _ ->
-                    % Collision, retry
-                    generate_slug(DetsRef, Retries - 1)
+                    generate_slug(DetsRef, BaseDomain, Retries - 1)
             end
     end.

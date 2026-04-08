@@ -544,3 +544,56 @@ standard Erlang/OTP toolkit with minimal external dependencies.
 
 The full source https://github.com/seriyps/personal_mtproxy
 The live demo https://demo.personal-mtp.online/admin.html
+
+---
+
+## Update — 2026-04-08: Multi-vhost support
+
+The config format has changed to support multiple base domains on a single node and port. Instead of three flat keys, configure a `vhosts` list:
+
+```erlang
+{personal_mtproxy, [
+  {vhosts, [
+    #{domain   => "demo.personal-mtp.online",
+      ssl_cert => "/var/lib/personal_mtproxy/demo.personal-mtp.online/fullchain.pem",
+      ssl_key  => "/var/lib/personal_mtproxy/demo.personal-mtp.online/privkey.pem"},
+    #{domain   => "prod.personal-mtp.online",
+      ssl_cert => "/var/lib/personal_mtproxy/prod.personal-mtp.online/fullchain.pem",
+      ssl_key  => "/var/lib/personal_mtproxy/prod.personal-mtp.online/privkey.pem"}
+  ]},
+  {dets_file, "/var/lib/personal_mtproxy/proxies.dets"},
+  ...
+]}
+```
+
+Each vhost needs its own wildcard TLS certificate. Cert files are now stored in per-domain subdirectories (`DATADIR/<domain>/`) instead of flat under `DATADIR/`.
+
+**The old `{base_domain, ssl_cert, ssl_key}` keys still work** — the app accepts them with a deprecation warning, so single-domain installs keep running without any immediate changes.
+
+### Migrating an existing install
+
+```bash
+# 1. Pull the new code
+git pull
+
+# 2. Update sys.config: replace the three legacy keys with the vhosts list,
+#    pointing ssl_cert/ssl_key at the new per-domain paths:
+#      /var/lib/personal_mtproxy/<domain>/fullchain.pem
+#      /var/lib/personal_mtproxy/<domain>/privkey.pem
+$EDITOR config/sys.config
+
+# 3. Build and install the new release (creates per-domain cert dirs, copies certs)
+make && sudo make install
+
+# 4. Clean up the old flat cert files and symlink
+sudo make migrate-vhosts-certs
+
+# 5. Push the updated config and reload
+make update-sysconfig && sudo systemctl reload personal_mtproxy
+```
+
+`migrate-vhosts-certs` is safe to run after `make install` — the service is
+already working with the new layout at that point; the target just removes the
+leftover flat `fullchain.pem`, `privkey.pem`, and `cert-lineage` symlink from
+`DATADIR/`. It is also idempotent: running it again on an already-migrated
+install is a no-op.

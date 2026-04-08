@@ -21,17 +21,30 @@
     ]}
   ]},
   {personal_mtproxy, [
-    {base_domain, "demo.personal-mtp.online"},
-    {dets_file,   "/var/lib/personal_mtproxy/proxies.dets"},
-    %% Paths where `make install` copies the Let's Encrypt certificate via the
-    %% certbot deploy hook.  Do not point directly at /etc/letsencrypt/live/…
+    %% Virtual-host configuration: one entry per base domain.
+    %% Each domain needs its own wildcard TLS certificate.
+    %% Paths should point to copies managed by the certbot deploy hook
+    %% (see `make install`); do NOT point directly at /etc/letsencrypt/live/
     %% — the private key there is root-only readable.
-    {ssl_cert,    "/var/lib/personal_mtproxy/fullchain.pem"},
-    {ssl_key,     "/var/lib/personal_mtproxy/privkey.pem"}
+    {vhosts, [
+      #{domain   => "demo.personal-mtp.online",
+        ssl_cert => "/var/lib/personal_mtproxy/demo.personal-mtp.online/fullchain.pem",
+        ssl_key  => "/var/lib/personal_mtproxy/demo.personal-mtp.online/privkey.pem"}
+      %% Add more vhosts here, e.g.:
+      %% #{domain   => "prod.personal-mtp.online",
+      %%   ssl_cert => "/var/lib/personal_mtproxy/prod.personal-mtp.online/fullchain.pem",
+      %%   ssl_key  => "/var/lib/personal_mtproxy/prod.personal-mtp.online/privkey.pem"}
+    ]},
+    {dets_file, "/var/lib/personal_mtproxy/proxies.dets"},
     %% Optional: bind Cowboy on a specific address instead of inheriting domain_fronting.
     %% Useful when you want to front an unrelated site and serve the UI on a separate port.
     %% {web_listen_ip,   "127.0.0.1"},
     %% {web_listen_port, 8443}
+
+    %% DEPRECATED (single-domain legacy format, use 'vhosts' above instead):
+    %% {base_domain, "demo.personal-mtp.online"},
+    %% {ssl_cert,    "/var/lib/personal_mtproxy/fullchain.pem"},
+    %% {ssl_key,     "/var/lib/personal_mtproxy/privkey.pem"}
   ]},
 
   %% Logging config
