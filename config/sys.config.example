@@ -18,7 +18,8 @@
     {policy, [
       {in_table, tls_domain, personal_domains},
       {max_connections, [tls_domain], 100}
-    ]}
+    ]},
+    {metric_backend, pm_prometheus}
   ]},
   {personal_mtproxy, [
     %% Virtual-host configuration: one entry per base domain.
@@ -36,6 +37,10 @@
       %%   ssl_key  => "/var/lib/personal_mtproxy/prod.personal-mtp.online/privkey.pem"}
     ]},
     {dets_file, "/var/lib/personal_mtproxy/proxies.dets"},
+    %% Prometheus metrics endpoint (plain HTTP, internal only).
+    %% Remove or comment out to disable metrics export.
+    {metrics_listen_ip,   "127.0.0.1"},
+    {metrics_listen_port, 9091}
     %% Optional: bind Cowboy on a specific address instead of inheriting domain_fronting.
     %% Useful when you want to front an unrelated site and serve the UI on a separate port.
     %% {web_listen_ip,   "127.0.0.1"},

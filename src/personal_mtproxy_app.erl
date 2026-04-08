@@ -14,10 +14,13 @@
 
 -define(APP, personal_mtproxy).
 -define(LISTENER, https_listener).
+-define(METRICS_LISTENER, metrics_listener).
 
 start(_StartType, _StartArgs) ->
     case validate_mtproto_ports() of
         ok ->
+            ok = pm_prometheus:init(),
+
             Res = {ok, _} = personal_mtproxy_sup:start_link(),
 
             {CowboyIp, CowboyPort, Kind} = cowboy_listen_addr(),
@@ -49,6 +52,8 @@ start(_StartType, _StartArgs) ->
                     ok
             end,
 
+            ok = start_metrics_listener(),
+
             Res;
         {error, Reason} ->
             ?LOG_ERROR("mtproto_proxy port validation failed: ~p", [Reason]),
@@ -57,6 +62,7 @@ start(_StartType, _StartArgs) ->
 
 stop(_State) ->
     cowboy:stop_listener(?LISTENER),
+    stop_metrics_listener(),
     case cowboy_listen_addr() of
         {_, _, fronting} ->
             Vhosts = read_vhosts(),
@@ -220,3 +226,25 @@ routes() ->
             {"/static/[...]", cowboy_static, {priv_dir, personal_mtproxy, "htdocs"}}
         ]}
     ]).
+
+start_metrics_listener() ->
+    case {application:get_env(?APP, metrics_listen_ip),
+          application:get_env(?APP, metrics_listen_port)} of
+        {{ok, Ip}, {ok, Port}} ->
+            {ok, ParsedIp} = inet:parse_address(Ip),
+            Dispatch = cowboy_router:compile([
+                {'_', [{"/metrics/[:registry]", prometheus_cowboy2_handler, []}]}
+            ]),
+            {ok, _} = cowboy:start_clear(
+                ?METRICS_LISTENER,
+                [{port, Port}, {ip, ParsedIp}],
+                #{env => #{dispatch => Dispatch}}
+            ),
+            ?LOG_INFO("Prometheus metrics on http://~s:~p/metrics", [Ip, Port]),
+            ok;
+        _ ->
+            ok
+    end.
+
+stop_metrics_listener() ->
+    cowboy:stop_listener(?METRICS_LISTENER).

@@ -3,7 +3,7 @@
   {vsn, "0.1.0"},
   {registered, [pm_registry]},
   {mod, {personal_mtproxy_app, []}},
-  {applications, [kernel, stdlib, sasl, mtproto_proxy, cowboy, jsx]},
+  {applications, [kernel, stdlib, sasl, prometheus, prometheus_cowboy, mtproto_proxy, cowboy, jsx]},
   {env, [
     {base_domain, "demo.personal-mtp.online"},
     {dets_file, "/var/lib/personal_mtproxy/proxies.dets"},
