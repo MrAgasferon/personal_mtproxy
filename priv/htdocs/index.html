@@ -1,70 +1,93 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Personal &#77;&#84;&#80;&#114;&#111;&#120;&#121;</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Georgia, serif; color: #333; background: #fafafa; line-height: 1.8; }
-    header { background: #2c3e50; color: #fff; padding: 2rem; text-align: center; }
-    header h1 { font-size: 2rem; font-weight: normal; letter-spacing: 0.05em; }
-    header p  { margin-top: 0.4rem; opacity: 0.85; font-size: 0.95rem; color: #cfe2f3; }
-    main { max-width: 720px; margin: 3rem auto; padding: 0 1.5rem; }
-    h2 { font-size: 1.3rem; margin: 2rem 0 0.6rem; color: #2c3e50; }
-    p  { margin-bottom: 1rem; color: #555; }
-    .cta { text-align: center; margin: 3rem 0; }
-    .cta a {
-      display: inline-block; padding: 0.8rem 2.4rem;
-      background: #2980b9; color: #fff; text-decoration: none;
-      border-radius: 4px; font-size: 1rem; font-family: sans-serif;
-      transition: background 0.2s;
-    }
-    .cta a:hover { background: #1a6a9a; }
-    footer { text-align: center; padding: 2rem; color: #aaa; font-size: 0.8rem; font-family: sans-serif; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>example.com</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #f7f7f7; color: #333; min-height: 100vh; display: flex; flex-direction: column; }
+  header { background: white; border-bottom: 1px solid #e5e5e5; padding: 14px 2rem; display: flex; align-items: center; gap: 10px; }
+  .logo { width: 28px; height: 28px; background: #2563eb; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+  .logo svg { width: 16px; height: 16px; fill: white; }
+  .brand { font-size: 15px; font-weight: 600; color: #111; }
+  .brand span { color: #2563eb; }
+  main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+  .card { background: white; border: 1px solid #e5e5e5; border-radius: 12px; padding: 3rem 2.5rem; max-width: 520px; width: 100%; text-align: center; }
+  .icon { width: 64px; height: 64px; margin: 0 auto 1.5rem; background: #eff6ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .icon svg { width: 32px; height: 32px; fill: none; stroke: #2563eb; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  h1 { font-size: 22px; font-weight: 600; color: #111; margin-bottom: 0.5rem; }
+  .domain { font-size: 15px; color: #2563eb; font-weight: 500; margin-bottom: 1.5rem; word-break: break-all; }
+  .desc { font-size: 14px; color: #666; line-height: 1.6; margin-bottom: 2rem; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 20px; padding: 5px 14px; font-size: 13px; color: #16a34a; margin-bottom: 2rem; }
+  .badge-dot { width: 7px; height: 7px; background: #22c55e; border-radius: 50%; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 2rem; }
+  .info-item { background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; padding: 12px; text-align: left; }
+  .info-label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .info-value { font-size: 13px; color: #333; font-weight: 500; }
+  .cta { font-size: 13px; color: #999; }
+  .cta a { color: #2563eb; text-decoration: none; }
+  .cta a:hover { text-decoration: underline; }
+  footer { text-align: center; padding: 1.5rem; font-size: 12px; color: #bbb; border-top: 1px solid #eee; background: white; }
+</style>
 </head>
 <body>
 
 <header>
-  <h1>Personal &#77;&#84;&#80;&#114;&#111;&#120;&#121;</h1>
-  <p>Your private, &#99;&#101;&#110;&#115;&#111;&#114;&#115;&#104;&#105;&#112;-resistant &#84;&#101;&#108;&#101;&#103;&#114;&#97;&#109; &#112;&#114;&#111;&#120;&#121;</p>
+  <div class="logo">
+    <svg viewBox="0 0 16 16"><path d="M2 3h12v2H2zm0 4h8v2H2zm0 4h10v2H2z"/></svg>
+  </div>
+  <span class="brand">Duck<span>Host</span></span>
 </header>
 
 <main>
-  <p>
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore
-    et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
-    aliquip ex ea commodo consequat.
-  </p>
+  <div class="card">
+    <div class="icon">
+      <svg viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+      </svg>
+    </div>
 
-  <h2>Fast &amp; Private</h2>
-  <p>
-    Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
-    pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt
-    mollit anim id est laborum.
-  </p>
+    <h1>Domain Parked</h1>
+    <div class="domain">example.com</div>
 
-  <h2>Always Available</h2>
-  <p>
-    Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium,
-    totam rem aperiam eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae
-    dicta sunt explicabo.
-  </p>
+    <div class="badge">
+      <div class="badge-dot"></div>
+      DNS Active
+    </div>
 
-  <h2>Easy to Use</h2>
-  <p>
-    Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur
-    magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est qui dolorem ipsum
-    quia dolor sit amet.
-  </p>
+    <p class="desc">
+      This domain has been registered and is currently parked. 
+      The owner has not yet configured a website for this address.
+    </p>
 
-  <div class="cta">
-    <a href="/admin.html">Get your personal &#112;&#114;&#111;&#120;&#121; →</a>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="info-label">Status</div>
+        <div class="info-value">Parked</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">DNS</div>
+        <div class="info-value">Configured</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">SSL</div>
+        <div class="info-value">Active</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Registrar</div>
+        <div class="info-value">DuckDNS</div>
+      </div>
+    </div>
+
+    <p class="cta">Are you the owner? <a href="#">Set up your site ></a></p>
   </div>
 </main>
 
-<footer>Powered by &#109;&#116;&#112;&#114;&#111;&#116;&#111;&#95;&#112;&#114;&#111;&#120;&#121;</footer>
+<footer>
+  &copy; 2026 DuckHost   Free domain parking service
+</footer>
 
 </body>
 </html>
