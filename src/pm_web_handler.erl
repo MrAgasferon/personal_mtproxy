@@ -2,9 +2,9 @@
 %% @doc Cowboy handler for JSON API endpoints
 %% POST   /api/proxies                  → register new proxy, return JSON
 %% DELETE /api/proxies?subdomain=<sub>  → revoke proxy
+%% PATCH  /api/proxies?subdomain=<sub>  → update active/expires_at
 %% GET    /api/proxies                  → list all proxies
 %% GET    /api/config                   → proxy config (secret, port, domain)
-%% PATCH  /api/proxies?subdomain=<sub>  → update active/expires_at
 %% GET    /api/connections              → active connections per subdomain
 %% GET    /api/metrics                  → Prometheus metrics as JSON
 %% @end
