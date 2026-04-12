@@ -31,12 +31,14 @@ start(_StartType, _StartArgs) ->
             {ok, DetsFile} = application:get_env(?APP, dets_file),
             ok = filelib:ensure_dir(DetsFile),
 
+            code:load_file(pm_auth_middleware),
             cowboy:start_tls(
               ?LISTENER,
               [{port, CowboyPort}, {ip, CowboyIp},
                {certfile, DefCert}, {keyfile, DefKey},
                {sni_fun, fun ?MODULE:sni_fun/1}],
-              #{env => #{dispatch => routes()}}
+              #{env => #{dispatch => routes()},
+                middlewares => [cowboy_router, pm_auth_middleware, cowboy_handler]}
             ),
 
             Domains = [maps:get(domain, V) || V <- Vhosts],
@@ -76,8 +78,6 @@ config_change(Changed, New, Removed) ->
     ok = lists:foreach(fun({K, V}) -> on_config_changed(new,     K, V) end, New),
     ok = lists:foreach(fun(K)      -> on_config_changed(removed, K, []) end, Removed).
 
-%% Called by the release handler (relup) and can be invoked manually from the
-%% shell after `application:set_env` to apply non-automatic config changes.
 on_config_changed(Action, vhosts, NewVhosts) when Action =:= changed; Action =:= new ->
     OldVhosts = case application:get_env(?APP, vhosts) of
                     {ok, V} -> V;
@@ -94,7 +94,6 @@ on_config_changed(Action, vhosts, NewVhosts) when Action =:= changed; Action =:=
         _ ->
             ok
     end,
-    %% If the primary vhost (default cert) changed, restart the listener
     OldPrimary = case OldVhosts of [H | _] -> H; [] -> undefined end,
     NewPrimary = hd(NewVhosts),
     case OldPrimary =:= NewPrimary of
@@ -114,9 +113,6 @@ on_config_changed(_, dets_file, _) ->
 on_config_changed(Action, K, V) ->
     ?LOG_INFO("Config ~p ~p to ~p — no action needed", [K, Action, V]).
 
-%% SNI callback: called by OTP ssl on every TLS handshake.
-%% Reads vhosts from application env each time so runtime updates take effect
-%% without restarting the listener.
 sni_fun(SNI) ->
     case application:get_env(?APP, vhosts) of
         {ok, Vhosts} -> find_vhost_by_sni(SNI, Vhosts);
@@ -171,10 +167,10 @@ restart_listener(Vhosts) ->
       [{port, CowboyPort}, {ip, CowboyIp},
        {certfile, DefCert}, {keyfile, DefKey},
        {sni_fun, fun ?MODULE:sni_fun/1}],
-      #{env => #{dispatch => routes()}}
+      #{env => #{dispatch => routes()},
+        middlewares => [cowboy_router, pm_auth_middleware, cowboy_handler]}
     ).
 
-%% Validate that IPv4 and IPv6 listeners agree on port and secret
 validate_mtproto_ports() ->
     case application:get_env(mtproto_proxy, ports) of
         undefined ->
@@ -214,16 +210,16 @@ cowboy_listen_addr() ->
     end.
 
 routes() ->
-    %% Use '_' (match-all host) rather than per-vhost entries: all vhosts serve
-    %% identical routes, and per-vhost dispatch would need to be recompiled on
-    %% every runtime vhost change. Host validation for the API is done in
-    %% pm_web_handler:validate_vhost/1 instead.
     cowboy_router:compile([
         {'_', [
-            {"/api/proxies", pm_web_handler, []},
-            {"/", cowboy_static, {priv_file, personal_mtproxy, "htdocs/index.html"}},
-            {"/admin.html", cowboy_static, {priv_file, personal_mtproxy, "htdocs/admin.html"}},
-            {"/static/[...]", cowboy_static, {priv_dir, personal_mtproxy, "htdocs"}}
+            {"/api/proxies",     pm_web_handler, []},
+            {"/api/config",      pm_web_handler, []},
+            {"/api/connections", pm_web_handler, []},
+            {"/",                cowboy_static, {priv_file, personal_mtproxy, "htdocs/index.html"}},
+            {"/admin.html",      cowboy_static, {priv_file, personal_mtproxy, "htdocs/admin.html"}},
+            {"/metrics.html", cowboy_static, {priv_file, personal_mtproxy, "htdocs/metrics.html"}},
+            {"/static/[...]",    cowboy_static, {priv_dir,  personal_mtproxy, "htdocs"}},
+            {"/api/metrics", pm_web_handler, []}
         ]}
     ]).
 
