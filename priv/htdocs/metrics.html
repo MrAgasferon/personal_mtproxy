@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MTProxy — Метрики</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+  :root[data-theme="light"] {
+    --bg: #f8f9fb;
+    --surface: #ffffff;
+    --border: #e5e7eb;
+    --border2: #d1d5db;
+    --text: #111827;
+    --muted: #6b7280;
+    --accent-soft: #f3f4f6;
+    --card: #ffffff;
+    --stat-bg: #f3f4f6;
+    --nav-active-bg: #111827;
+    --nav-active-text: #ffffff;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+    --c1: #2563eb;
+    --c2: #16a34a;
+    --c3: #dc2626;
+    --c4: #7c3aed;
+    --c5: #0891b2;
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --border: #1e2d45;
+    --border2: #2a3a55;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --accent-soft: rgba(0,212,255,0.08);
+    --card: #131c2e;
+    --stat-bg: #131c2e;
+    --nav-active-bg: #00d4ff;
+    --nav-active-text: #0a0e1a;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3);
+    --c1: #00d4ff;
+    --c2: #00ff88;
+    --c3: #ff6b35;
+    --c4: #a78bfa;
+    --c5: #22d3ee;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .layout { max-width: 1100px; margin: 0 auto; }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .logo em { color: var(--muted); font-style: normal; font-weight: 400; }
+
+  .header-right { display: flex; align-items: center; gap: 10px; }
+
+  .pulse {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--c2);
+    box-shadow: 0 0 6px var(--c2);
+    animation: blink 2s infinite;
+    display: inline-block;
+    margin-right: 6px;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .refresh-info {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .theme-toggle {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    box-shadow: var(--shadow);
+  }
+
+  nav {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+
+  nav a {
+    padding: 7px 14px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--surface);
+    transition: all 0.15s;
+    box-shadow: var(--shadow);
+  }
+
+  nav a:hover { color: var(--text); border-color: var(--border2); }
+
+  nav a.active {
+    background: var(--nav-active-bg);
+    color: var(--nav-active-text);
+    border-color: var(--nav-active-bg);
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--card-color);
+    opacity: 0.8;
+  }
+
+  .card-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 10px;
+  }
+
+  .card-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 30px;
+    font-weight: 700;
+    color: var(--card-color);
+    line-height: 1;
+  }
+
+  .card-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 7px;
+  }
+
+  .section-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .dc-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+
+  .dc-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .dc-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--c2);
+  }
+
+  .dc-sub { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  .mem-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .mem-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: var(--shadow);
+  }
+
+  .mem-label { font-size: 12px; color: var(--muted); }
+
+  .mem-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .error {
+    background: rgba(220,38,38,0.08);
+    border: 1px solid rgba(220,38,38,0.2);
+    border-radius: 8px;
+    padding: 16px;
+    color: var(--c3);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+  }
+
+  .loading {
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    padding: 60px;
+    text-align: center;
+  }
+
+  footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 14px; }
+    .cards { grid-template-columns: repeat(2, 1fr); }
+    .card-value { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <header>
+    <div class="logo">MTProxy <em>/ метрики</em></div>
+    <div class="header-right">
+      <div class="refresh-info"><span class="pulse"></span><span id="last-update">загрузка...</span></div>
+      <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">🌙</button>
+    </div>
+  </header>
+
+  <nav>
+    <a href="/admin.html">Панель</a>
+    <a href="/metrics.html" class="active">Метрики</a>
+  </nav>
+
+  <div id="content"><div class="loading">загрузка метрик...</div></div>
+
+  <footer>
+    <span>Prometheus metrics via /api/metrics</span>
+    <span id="footer-time"></span>
+  </footer>
+</div>
+
+<script>
+  const saved = localStorage.getItem('mtproxy-theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+  document.getElementById('theme-btn').textContent = saved === 'dark' ? '☀️' : '🌙';
+
+  function toggleTheme() {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('mtproxy-theme', next);
+    document.getElementById('theme-btn').textContent = next === 'dark' ? '☀️' : '🌙';
+  }
+
+  function get(data, name) {
+    const m = data.find(d => d.name === name);
+    return m ? parseFloat(m.value) : 0;
+  }
+
+  function byPrefix(data, prefix) {
+    return data.filter(d => d.name.startsWith(prefix));
+  }
+
+  function parseDC(name) {
+    const m = name.match(/dc="(-?\d+)"/);
+    return m ? m[1] : name;
+  }
+
+  function fmtBytes(b) {
+    if (b > 1048576) return (b/1048576).toFixed(1) + ' MB';
+    if (b > 1024) return (b/1024).toFixed(1) + ' KB';
+    return b + ' B';
+  }
+
+  async function load() {
+    try {
+      const [metricsR, connR] = await Promise.all([
+        fetch('/api/metrics'),
+        fetch('/api/connections')
+      ]);
+      const data = await metricsR.json();
+      const connList = await connR.json();
+
+      const userConns = connList.reduce((s, c) => s + c.connections, 0);
+      const userOnline = connList.filter(c => c.connections > 0).length;
+
+      const tcpConns = get(data, 'mtproto_proxy_connections_count{listener="mtp_ipv4"}');
+      const users    = get(data, 'personal_mtproxy_registered_subdomains');
+      const total    = get(data, 'mtproto_proxy_in_connection_total{listener="mtp_ipv4"}');
+      const errs     = get(data, 'mtproto_proxy_protocol_error_total{listener="mtp_ipv4",reason="tls_invalid_digest"}');
+      const procs    = get(data, 'erlang_vm_process_count');
+      const memSys   = get(data, 'erlang_vm_memory_bytes_total{kind="system"}');
+      const memPrc   = get(data, 'erlang_vm_memory_bytes_total{kind="processes"}');
+      const rx       = get(data, 'mtproto_proxy_received_upstream_bytes{listener="mtp_ipv4"}');
+
+      const ups = byPrefix(data, 'mtproto_proxy_dc_num_upstreams')
+        .filter(d => d.name.match(/dc="(\d+)"/));
+
+      const html = `
+        <div class="cards">
+          <div class="card" style="--card-color:var(--c2)">
+            <div class="card-label">Пользователей онлайн</div>
+            <div class="card-value">${userOnline}</div>
+            <div class="card-sub">активных соединений: ${userConns}</div>
+          </div>
+          <div class="card" style="--card-color:var(--c5)">
+            <div class="card-label">TCP соединений</div>
+            <div class="card-value">${tcpConns}</div>
+            <div class="card-sub">всего за сессию: ${total}</div>
+          </div>
+          <div class="card" style="--card-color:var(--c1)">
+            <div class="card-label">Пользователей</div>
+            <div class="card-value">${users}</div>
+            <div class="card-sub">зарегистрированных субдоменов</div>
+          </div>
+          <div class="card" style="--card-color:var(--c3)">
+            <div class="card-label">Ошибок TLS</div>
+            <div class="card-value">${errs}</div>
+            <div class="card-sub">invalid digest за сессию</div>
+          </div>
+          <div class="card" style="--card-color:var(--c4)">
+            <div class="card-label">Трафик входящий</div>
+            <div class="card-value" style="font-size:22px">${fmtBytes(rx)}</div>
+            <div class="card-sub">получено от Telegram</div>
+          </div>
+        </div>
+
+        <div class="section-title">Соединения к DC Telegram</div>
+        <div class="dc-grid">
+          ${ups.map(m => {
+            const dc = parseDC(m.name);
+            const dn = get(data, `mtproto_proxy_dc_num_downstreams{dc="${dc}"}`);
+            return `<div class="dc-card">
+              <div class="dc-name">DC ${dc}</div>
+              <div class="dc-val">${m.value}</div>
+              <div class="dc-sub">${dn} downstream</div>
+            </div>`;
+          }).join('')}
+        </div>
+
+        <div class="section-title">Erlang VM</div>
+        <div class="mem-grid">
+          <div class="mem-row"><span class="mem-label">Процессов</span><span class="mem-val">${procs}</span></div>
+          <div class="mem-row"><span class="mem-label">Память системы</span><span class="mem-val">${fmtBytes(memSys)}</span></div>
+          <div class="mem-row"><span class="mem-label">Память процессов</span><span class="mem-val">${fmtBytes(memPrc)}</span></div>
+          <div class="mem-row"><span class="mem-label">ETS таблиц</span><span class="mem-val">${get(data,'erlang_vm_memory_ets_tables')}</span></div>
+          <div class="mem-row"><span class="mem-label">Планировщиков</span><span class="mem-val">${get(data,'erlang_vm_schedulers_online')}</span></div>
+          <div class="mem-row"><span class="mem-label">GC запусков</span><span class="mem-val">${get(data,'erlang_vm_statistics_garbage_collection_number_of_gcs')}</span></div>
+        </div>
+      `;
+
+      document.getElementById('content').innerHTML = html;
+      const now = new Date();
+      document.getElementById('last-update').textContent = 'обновлено ' + now.toLocaleTimeString('ru');
+      document.getElementById('footer-time').textContent = now.toLocaleDateString('ru');
+
+    } catch(e) {
+      document.getElementById('content').innerHTML = `<div class="error">Ошибка: ${e.message}</div>`;
+    }
+  }
+
+  load();
+  setInterval(load, 10000);
+</script>
+</body>
+</html>
