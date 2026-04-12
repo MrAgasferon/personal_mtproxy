@@ -87,7 +87,6 @@
   .conn-count { font-size: 12px; font-weight: 600; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
   .conn-count.on { color: var(--success); }
 
-  /* Toggle switch */
   .toggle-wrap { display: flex; align-items: center; gap: 6px; }
   .toggle { position: relative; width: 36px; height: 20px; cursor: pointer; }
   .toggle input { opacity: 0; width: 0; height: 0; }
@@ -105,7 +104,6 @@
   .revoke-btn:hover { background: var(--danger-soft); }
   .revoke-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  /* Mobile cards */
   .cards-list { display: none; flex-direction: column; gap: 10px; }
   .user-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; box-shadow: var(--shadow); }
   .user-card.inactive { opacity: 0.6; }
@@ -218,14 +216,27 @@
     setTimeout(() => t.classList.remove('show'), 2000);
   }
 
-  function buildSecret(baseSecret, subdomain) {
-    const enc = new TextEncoder();
-    const hex = Array.from(enc.encode(subdomain)).map(b => b.toString(16).padStart(2,'0')).join('');
-    return 'ee' + baseSecret + hex;
+  function hexBytes(bytes) {
+    return Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join('');
   }
 
-  function buildLinks(entry) {
-    const secret = buildSecret(proxyConfig.secret, entry.subdomain);
+  async function buildSecret(baseSecret, subdomain, salt) {
+    const enc = new TextEncoder();
+    if (salt) {
+      const data = enc.encode(salt + baseSecret + subdomain);
+      const hash = await crypto.subtle.digest('SHA-256', data);
+      const derived = hexBytes(new Uint8Array(hash).slice(0, 16));
+      const sniHex = hexBytes(enc.encode(subdomain));
+      return 'ee' + derived + sniHex;
+    } else {
+      const sniHex = hexBytes(enc.encode(subdomain));
+      return 'ee' + baseSecret + sniHex;
+    }
+  }
+
+  async function buildLinks(entry) {
+    const salt = proxyConfig.per_sni_secret_salt || null;
+    const secret = await buildSecret(proxyConfig.secret, entry.subdomain, salt);
     const params = new URLSearchParams({ server: proxyConfig.base_domain, port: String(proxyConfig.port), secret });
     return { tme: 'https://t.me/proxy?' + params, tg: 'tg://proxy?' + params, secret };
   }
@@ -357,22 +368,22 @@
     return allEntries.filter(e => (e.subdomain||'').toLowerCase().includes(q) || (e.email||'').toLowerCase().includes(q));
   }
 
-  function renderAll() {
+  async function renderAll() {
     const filtered = getFiltered();
     document.getElementById('stat-filtered').textContent = filtered.length;
-    renderTable(filtered);
-    renderCards(filtered);
+    await renderTable(filtered);
+    await renderCards(filtered);
   }
 
-  function renderTable(filtered) {
+  async function renderTable(filtered) {
     if (!filtered.length) {
       document.getElementById('table-container').innerHTML = '<div class="empty">Ничего не найдено</div>';
       return;
     }
-    const rows = filtered.map(e => {
+    const rows = await Promise.all(filtered.map(async e => {
       const date = e.registered_at ? new Date(e.registered_at * 1000).toLocaleDateString('ru-RU') : '—';
       const conns = connections[e.subdomain] || 0;
-      const links = proxyConfig.secret ? buildLinks(e) : null;
+      const links = proxyConfig.secret ? await buildLinks(e) : null;
       const tme = links ? links.tme.replace(/'/g,"\\'") : '';
       const tg = links ? links.tg.replace(/'/g,"\\'") : '';
       const sec = links ? links.secret : '';
@@ -403,22 +414,22 @@
           <button class="revoke-btn" onclick="revoke('${sub}',this)">Удалить</button>
         </div></td>
       </tr>`;
-    }).join('');
+    }));
     document.getElementById('table-container').innerHTML = `<table>
       <thead><tr><th>Онлайн</th><th>Subdomain</th><th>Email</th><th>Создан</th><th>До</th><th>Статус</th><th>Действия</th></tr></thead>
-      <tbody>${rows}</tbody>
+      <tbody>${rows.join('')}</tbody>
     </table>`;
   }
 
-  function renderCards(filtered) {
+  async function renderCards(filtered) {
     if (!filtered.length) {
       document.getElementById('cards-container').innerHTML = '<div class="empty">Ничего не найдено</div>';
       return;
     }
-    const cards = filtered.map(e => {
+    const cards = await Promise.all(filtered.map(async e => {
       const date = e.registered_at ? new Date(e.registered_at * 1000).toLocaleDateString('ru-RU') : '—';
       const conns = connections[e.subdomain] || 0;
-      const links = proxyConfig.secret ? buildLinks(e) : null;
+      const links = proxyConfig.secret ? await buildLinks(e) : null;
       const tme = links ? links.tme.replace(/'/g,"\\'") : '';
       const tg = links ? links.tg.replace(/'/g,"\\'") : '';
       const sec = links ? links.secret : '';
@@ -445,8 +456,8 @@
           <button class="revoke-btn" onclick="revoke('${sub}',this)">Удалить</button>
         </div>
       </div>`;
-    }).join('');
-    document.getElementById('cards-container').innerHTML = cards;
+    }));
+    document.getElementById('cards-container').innerHTML = cards.join('');
   }
 
   async function revoke(sub, btn) {

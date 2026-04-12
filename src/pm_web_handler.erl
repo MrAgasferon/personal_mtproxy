@@ -2,9 +2,11 @@
 %% @doc Cowboy handler for JSON API endpoints
 %% POST   /api/proxies                  → register new proxy, return JSON
 %% DELETE /api/proxies?subdomain=<sub>  → revoke proxy
+%% PATCH  /api/proxies?subdomain=<sub>  → update active/expires_at
 %% GET    /api/proxies                  → list all proxies
 %% GET    /api/config                   → proxy config (secret, port, domain)
 %% GET    /api/connections              → active connections per subdomain
+%% GET    /api/metrics                  → Prometheus metrics as JSON
 %% @end
 %%%-------------------------------------------------------------------
 -module(pm_web_handler).
@@ -20,8 +22,12 @@ handle(Req = #{method := <<"POST">>, path := <<"/api/proxies">>}) ->
     {ok, Body, Req1} = cowboy_req:read_body(Req),
     Params = uri_string:dissect_query(Body),
     Email = proplists:get_value(<<"email">>, Params, <<>>),
+    ExpiresAt = case proplists:get_value(<<"expires_at">>, Params) of
+        undefined -> 0;
+        V -> try binary_to_integer(V) catch _:_ -> 0 end
+    end,
     {ok, BaseDomain} = application:get_env(personal_mtproxy, base_domain),
-    case pm_registry:register(Email, list_to_binary(BaseDomain)) of
+    case pm_registry:register(Email, list_to_binary(BaseDomain), ExpiresAt) of
         {ok, Subdomain, Port, BaseSecret} ->
             Secret = iolist_to_binary([<<"ee">>,
                            string:lowercase(BaseSecret),
@@ -41,6 +47,35 @@ handle(Req = #{method := <<"POST">>, path := <<"/api/proxies">>}) ->
             {500, #{error => ErrMsg}, Req1}
     end;
 
+handle(Req = #{method := <<"PATCH">>, path := <<"/api/proxies">>}) ->
+    Params = cowboy_req:parse_qs(Req),
+    case proplists:get_value(<<"subdomain">>, Params) of
+        undefined ->
+            {400, #{error => <<"missing subdomain parameter">>}, Req};
+        Subdomain ->
+            {ok, Body, Req1} = cowboy_req:read_body(Req),
+            BodyParams = uri_string:dissect_query(Body),
+            Results = lists:filtermap(
+                fun({<<"active">>, Val}) ->
+                    Active = Val =:= <<"true">>,
+                    case pm_registry:set_active(Subdomain, Active) of
+                        ok -> {true, {active, Active}};
+                        {error, R} -> {true, {error, R}}
+                    end;
+                   ({<<"expires_at">>, Val}) ->
+                    ExpiresAt = try binary_to_integer(Val) catch _:_ -> 0 end,
+                    case pm_registry:set_expires(Subdomain, ExpiresAt) of
+                        ok -> {true, {expires_at, ExpiresAt}};
+                        {error, R} -> {true, {error, R}}
+                    end;
+                   (_) -> false
+                end, BodyParams),
+            case lists:keyfind(error, 1, Results) of
+                {error, not_found} -> {404, #{error => <<"subdomain not found">>}, Req1};
+                _ -> {200, #{ok => true}, Req1}
+            end
+    end;
+
 handle(Req = #{method := <<"DELETE">>, path := <<"/api/proxies">>}) ->
     Params = cowboy_req:parse_qs(Req),
     case proplists:get_value(<<"subdomain">>, Params) of
@@ -58,12 +93,25 @@ handle(Req = #{method := <<"DELETE">>, path := <<"/api/proxies">>}) ->
 handle(Req = #{method := <<"GET">>, path := <<"/api/config">>}) ->
     {ok, [#{port := Port, secret := Secret} | _]} = application:get_env(mtproto_proxy, ports),
     {ok, BaseDomain} = application:get_env(personal_mtproxy, base_domain),
-    {200, #{port => Port, secret => string:lowercase(Secret), base_domain => list_to_binary(BaseDomain)}, Req};
+    Salt = case application:get_env(mtproto_proxy, per_sni_secret_salt) of
+        {ok, S} -> S;
+        undefined -> null
+    end,
+    {200, #{port => Port,
+            secret => string:lowercase(Secret),
+            base_domain => list_to_binary(BaseDomain),
+            per_sni_secret_salt => Salt}, Req};
 
 handle(Req = #{method := <<"GET">>, path := <<"/api/proxies">>}) ->
     Entries = pm_registry:list(),
-    List = [#{subdomain => Sub, email => Email, registered_at => Ts}
-            || {Sub, Email, Ts} <- Entries],
+    Now = erlang:system_time(second),
+    List = [#{subdomain => Sub,
+              email => Email,
+              registered_at => Ts,
+              expires_at => ExpiresAt,
+              active => Active,
+              expired => (ExpiresAt > 0 andalso ExpiresAt < Now)}
+            || {Sub, Email, Ts, ExpiresAt, Active} <- Entries],
     {200, List, Req};
 
 handle(Req = #{method := <<"GET">>, path := <<"/api/connections">>}) ->
